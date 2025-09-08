@@ -1,0 +1,82 @@
+# 0-simple_web_stack
+
+## Whiteboard Design (Single Server Web Infrastructure)
+
+              Internet
+                |
+        DNS: www.foobar.com
+        (A record → 8.8.8.8)
+                |
+            8.8.8.8
+         +--------------+
+         |  Single VM / |
+         |  Physical    |
+         |  Server      |
+         +--------------+
+                |
++---------------------------------------------+
+|  Processes on the same machine (localhost)  |
+|                                             |
+|  [Nginx]  <-reverse proxy / static files->  |
+|     listens on :80 (HTTP) and :443 (HTTPS) |
+|           proxies to localhost:8000         |
+|                                             |
+|  [App server] (e.g., Gunicorn, uWSGI, Node) |
+|     serves application logic at :8000       |
+|                                             |
+|  [App files]  /var/www/foobar (codebase)    |
+|                                             |
+|  [MySQL]   listens on 127.0.0.1:3306       |
++---------------------------------------------+
+
+
+---
+
+## Request Flow (Step-by-Step)
+
+1. The **user** opens their browser and types `www.foobar.com`.
+2. Browser asks the **DNS** to resolve `www.foobar.com` → returns IP address `8.8.8.8` (**A record**).
+3. Browser sends an HTTP/HTTPS request to `8.8.8.8` (server).
+4. **Nginx** receives the request:
+   - Serves static files directly.
+   - For dynamic requests, forwards to the **application server** (e.g., Gunicorn) on `localhost:8000`.
+5. **Application server** runs the application code (from `/var/www/foobar`), processes logic, queries the **MySQL database** if needed.
+6. MySQL returns data to the application server → application returns response to Nginx → Nginx sends it back to the user’s browser.
+
+---
+
+## Component Explanations
+
+- **What is a server?**  
+  A machine (physical or virtual) that provides services/resources to clients over a network. In this setup, it hosts the web server, application server, codebase, and database.
+
+- **Role of the domain name:**  
+  Makes it easier for users to access the site using a human-readable name (`foobar.com`) instead of an IP.
+
+- **Type of DNS record `www` is:**  
+  An **A record** mapping `www.foobar.com` to `8.8.8.8`.
+
+- **Role of the web server (Nginx):**  
+  Handles incoming HTTP/HTTPS requests, serves static files, and forwards dynamic requests to the application server.
+
+- **Role of the application server:**  
+  Executes application logic, processes requests, interacts with the database, and returns generated responses.
+
+- **Role of the database (MySQL):**  
+  Stores and retrieves structured data (e.g., users, posts) requested by the application.
+
+- **Communication between server and user:**  
+  Uses TCP/IP with HTTP or HTTPS protocols. DNS is used to resolve the domain name before the connection.
+
+---
+
+## Issues with This Infrastructure
+
+1. **SPOF (Single Point of Failure):**  
+   If the server fails, the entire website goes down.
+
+2. **Downtime during maintenance:**  
+   Restarting the web server, application server, or database causes temporary downtime.
+
+3. **Scaling limitations:**  
+   Cannot handle high traffic — all components share one machine, so performance suffers under heavy load.
